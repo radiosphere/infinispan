@@ -14,6 +14,7 @@ import org.infinispan.lock.impl.externalizers.ExternalizerIds;
 import org.infinispan.metadata.Metadata;
 import org.infinispan.notifications.cachelistener.filter.CacheEventFilter;
 import org.infinispan.notifications.cachelistener.filter.EventType;
+import org.infinispan.notifications.cachelistener.filter.KeyBoundOperation;
 
 /**
  * This listener is used to monitor lock state changes.
@@ -22,7 +23,7 @@ import org.infinispan.notifications.cachelistener.filter.EventType;
  * @author Katia Aresti, karesti@redhat.com
  * @since 9.2
  */
-public class ClusteredLockFilter implements CacheEventFilter<ClusteredLockKey, ClusteredLockValue> {
+public class ClusteredLockFilter implements CacheEventFilter<ClusteredLockKey, ClusteredLockValue>, KeyBoundOperation {
 
    public static final AdvancedExternalizer<ClusteredLockFilter> EXTERNALIZER = new ClusteredLockFilter.Externalizer();
 
@@ -35,6 +36,11 @@ public class ClusteredLockFilter implements CacheEventFilter<ClusteredLockKey, C
    @Override
    public boolean accept(ClusteredLockKey key, ClusteredLockValue oldValue, Metadata oldMetadata, ClusteredLockValue newValue, Metadata newMetadata, EventType eventType) {
       return name.equals(key);
+   }
+
+   @Override
+   public Object getKey() {
+      return name;
    }
 
    public static class Externalizer extends AbstractExternalizer<ClusteredLockFilter> {

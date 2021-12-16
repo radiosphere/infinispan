@@ -31,7 +31,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 
 import javax.transaction.Status;
@@ -196,22 +195,22 @@ public class CacheNotifierImpl<K, V> extends AbstractListenerImpl<Event<K, V>, C
       clusterAllowedListeners.put(CacheEntryExpired.class, CacheEntryExpiredEvent.class);
    }
 
-   final List<CacheEntryListenerInvocation<K, V>> cacheEntryCreatedListeners = new CopyOnWriteArrayList<>();
-   final List<CacheEntryListenerInvocation<K, V>> cacheEntryRemovedListeners = new CopyOnWriteArrayList<>();
-   final List<CacheEntryListenerInvocation<K, V>> cacheEntryVisitedListeners = new CopyOnWriteArrayList<>();
-   final List<CacheEntryListenerInvocation<K, V>> cacheEntryModifiedListeners = new CopyOnWriteArrayList<>();
-   final List<CacheEntryListenerInvocation<K, V>> cacheEntryActivatedListeners = new CopyOnWriteArrayList<>();
-   final List<CacheEntryListenerInvocation<K, V>> cacheEntryPassivatedListeners = new CopyOnWriteArrayList<>();
-   final List<CacheEntryListenerInvocation<K, V>> cacheEntryLoadedListeners = new CopyOnWriteArrayList<>();
-   final List<CacheEntryListenerInvocation<K, V>> cacheEntryInvalidatedListeners = new CopyOnWriteArrayList<>();
-   final List<CacheEntryListenerInvocation<K, V>> cacheEntryExpiredListeners = new CopyOnWriteArrayList<>();
-   final List<CacheEntryListenerInvocation<K, V>> cacheEntriesEvictedListeners = new CopyOnWriteArrayList<>();
-   final List<CacheEntryListenerInvocation<K, V>> transactionRegisteredListeners = new CopyOnWriteArrayList<>();
-   final List<CacheEntryListenerInvocation<K, V>> transactionCompletedListeners = new CopyOnWriteArrayList<>();
-   final List<CacheEntryListenerInvocation<K, V>> dataRehashedListeners = new CopyOnWriteArrayList<>();
-   final List<CacheEntryListenerInvocation<K, V>> topologyChangedListeners = new CopyOnWriteArrayList<>();
-   final List<CacheEntryListenerInvocation<K, V>> partitionChangedListeners = new CopyOnWriteArrayList<>();
-   final List<CacheEntryListenerInvocation<K, V>> persistenceChangedListeners = new CopyOnWriteArrayList<>();
+   final ListenerInvocationCollection<K, V> cacheEntryCreatedListeners = new ListenerInvocationCollection<>();
+   final ListenerInvocationCollection<K, V> cacheEntryRemovedListeners = new ListenerInvocationCollection<>();
+   final ListenerInvocationCollection<K, V> cacheEntryVisitedListeners = new ListenerInvocationCollection<>();
+   final ListenerInvocationCollection<K, V> cacheEntryModifiedListeners = new ListenerInvocationCollection<>();
+   final ListenerInvocationCollection<K, V> cacheEntryActivatedListeners = new ListenerInvocationCollection<>();
+   final ListenerInvocationCollection<K, V> cacheEntryPassivatedListeners = new ListenerInvocationCollection<>();
+   final ListenerInvocationCollection<K, V> cacheEntryLoadedListeners = new ListenerInvocationCollection<>();
+   final ListenerInvocationCollection<K, V> cacheEntryInvalidatedListeners = new ListenerInvocationCollection<>();
+   final ListenerInvocationCollection<K, V> cacheEntryExpiredListeners = new ListenerInvocationCollection<>();
+   final ListenerInvocationCollection<K, V> cacheEntriesEvictedListeners = new ListenerInvocationCollection<>();
+   final ListenerInvocationCollection<K, V> transactionRegisteredListeners = new ListenerInvocationCollection<>();
+   final ListenerInvocationCollection<K, V> transactionCompletedListeners = new ListenerInvocationCollection<>();
+   final ListenerInvocationCollection<K, V> dataRehashedListeners = new ListenerInvocationCollection<>();
+   final ListenerInvocationCollection<K, V> topologyChangedListeners = new ListenerInvocationCollection<>();
+   final ListenerInvocationCollection<K, V> partitionChangedListeners = new ListenerInvocationCollection<>();
+   final ListenerInvocationCollection<K, V> persistenceChangedListeners = new ListenerInvocationCollection<>();
 
    @Inject TransactionManager transactionManager;
    @Inject Configuration config;
@@ -422,13 +421,8 @@ public class CacheNotifierImpl<K, V> extends AbstractListenerImpl<Event<K, V>, C
          boolean isLocalNodePrimaryOwner = isLocalNodePrimaryOwner(key);
          Object batchIdentifier = ctx.isInTxScope() ? null : Thread.currentThread();
          try {
-            AggregateCompletionStage<Void> aggregateCompletionStage = null;
-            for (CacheEntryListenerInvocation<K, V> listener : cacheEntryCreatedListeners) {
-               // Need a wrapper per invocation since converter could modify the entry in it
-               configureEvent(listener, e, key, value, metadata, pre, ctx, command, null, null);
-               aggregateCompletionStage = composeStageIfNeeded(aggregateCompletionStage,
-                     listener.invoke(new EventWrapper<>(key, e), isLocalNodePrimaryOwner));
-            }
+            AggregateCompletionStage<Void> aggregateCompletionStage = cacheEntryCreatedListeners.notifyEvent(
+                    e, key, value, metadata, pre, ctx, command, null, null, encoderRegistry, isLocalNodePrimaryOwner);
             if (batchIdentifier != null) {
                return sendEvents(batchIdentifier, aggregateCompletionStage);
             } else if (aggregateCompletionStage != null) {
@@ -460,13 +454,8 @@ public class CacheNotifierImpl<K, V> extends AbstractListenerImpl<Event<K, V>, C
          boolean isLocalNodePrimaryOwner = isLocalNodePrimaryOwner(key);
          Object batchIdentifier = ctx.isInTxScope() ? null : Thread.currentThread();
          try {
-            AggregateCompletionStage<Void> aggregateCompletionStage = null;
-            for (CacheEntryListenerInvocation<K, V> listener : cacheEntryModifiedListeners) {
-               // Need a wrapper per invocation since converter could modify the entry in it
-               configureEvent(listener, e, key, value, metadata, pre, ctx, command, previousValue, previousMetadata);
-               aggregateCompletionStage = composeStageIfNeeded(aggregateCompletionStage,
-                     listener.invoke(new EventWrapper<>(key, e), isLocalNodePrimaryOwner));
-            }
+            AggregateCompletionStage<Void> aggregateCompletionStage = cacheEntryModifiedListeners.notifyEvent(e, key,
+                    value, metadata, pre, ctx, command, previousValue, previousMetadata, encoderRegistry, isLocalNodePrimaryOwner);
             if (batchIdentifier != null) {
                return sendEvents(batchIdentifier, aggregateCompletionStage);
             } else if (aggregateCompletionStage != null) {
@@ -497,20 +486,9 @@ public class CacheNotifierImpl<K, V> extends AbstractListenerImpl<Event<K, V>, C
          boolean isLocalNodePrimaryOwner = isLocalNodePrimaryOwner(key);
          Object batchIdentifier = ctx.isInTxScope() ? null : Thread.currentThread();
          try {
-            AggregateCompletionStage<Void> aggregateCompletionStage = null;
-            for (CacheEntryListenerInvocation<K, V> listener : cacheEntryRemovedListeners) {
-               // Need a wrapper per invocation since converter could modify the entry in it
-               if (pre) {
-                  configureEvent(listener, e, key, previousValue, previousMetadata, true, ctx, command, previousValue, previousMetadata);
-               } else {
-                  // to be consistent it would be better to pass null as previousMetadata but certain server code
-                  // depends on ability to retrieve these metadata when pre=false from CacheEntryEvent.getMetadata
-                  // instead of having proper method getOldMetadata() there.
-                  configureEvent(listener, e, key, null, previousMetadata, false, ctx, command, previousValue, previousMetadata);
-               }
-               aggregateCompletionStage = composeStageIfNeeded(aggregateCompletionStage,
-                     listener.invoke(new EventWrapper<>(key, e), isLocalNodePrimaryOwner));
-            }
+            V newValue = pre ? previousValue : null;
+            AggregateCompletionStage<Void> aggregateCompletionStage = cacheEntryRemovedListeners.notifyEvent(
+                    e, key, newValue, previousMetadata, pre, ctx, command, previousValue, previousMetadata, encoderRegistry, isLocalNodePrimaryOwner);
             if (batchIdentifier != null) {
                return sendEvents(batchIdentifier, aggregateCompletionStage);
             } else if (aggregateCompletionStage != null) {
